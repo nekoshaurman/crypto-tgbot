@@ -22,33 +22,19 @@ public class PriceCommandHandler implements CommandHandler {
     @Override
     public String handle(Update update, MessageSource messageSource) {
         String text = update.message().text().toLowerCase();
-        String ticker = extractTicker(text);
+        String[] parts = text.split(" ");
+        String ticker = parts.length > 1 ? parts[1].toLowerCase() : null;
+
         if (ticker != null) {
             try {
-                // Преобразуем тикер в формат CoinGecko (например, btc -> bitcoin)
-                String coingeckoTicker = mapToCoinGeckoTicker(ticker);
-                String price = scrapperClient.getPrice(coingeckoTicker);
+                String price = scrapperClient.getPrice(ticker);
                 return messageSource.getMessage("price.success", new Object[]{ticker.toUpperCase(), price}, Locale.getDefault());
             } catch (HttpClientErrorException.BadRequest e) {
-                return messageSource.getMessage("price.error", null, Locale.getDefault());
+                return messageSource.getMessage("price.error", new Object[]{ticker.toUpperCase(), e.getResponseBodyAsString()}, Locale.getDefault());
+            } catch (Exception e) {
+                return messageSource.getMessage("price.error", new Object[]{ticker.toUpperCase(), "Unexpected error: " + e.getMessage()}, Locale.getDefault());
             }
         }
         return messageSource.getMessage("price.invalid", null, Locale.getDefault());
-    }
-
-    private String extractTicker(String text) {
-        String[] parts = text.split(" ");
-        return parts.length > 1 ? parts[1].toLowerCase() : null;
-    }
-
-    private String mapToCoinGeckoTicker(String ticker) {
-        // Маппинг тикеров на идентификаторы CoinGecko
-        return switch (ticker.toLowerCase()) {
-            case "btc" -> "bitcoin";
-            case "eth" -> "ethereum";
-            case "ada" -> "cardano";
-            case "xrp" -> "ripple";
-            default -> ticker;
-        };
     }
 }
