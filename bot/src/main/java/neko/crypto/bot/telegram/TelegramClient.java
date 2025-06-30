@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import neko.crypto.bot.telegram.handler.CommandHandler;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 
 import jakarta.annotation.PostConstruct;
 import java.util.List;
@@ -26,10 +27,19 @@ public class TelegramClient {
         bot.setUpdatesListener(updates -> {
             for (Update update : updates) {
                 if (update.message() != null && update.message().text() != null) {
-                    handleUpdate(update);
+                    try {
+                        handleUpdate(update);
+                    } catch (Exception e) {
+                        Long chatId = update.message().chat().id();
+                        SendMessage message = new SendMessage(chatId, "An error occurred: " + e.getMessage());
+                        bot.execute(message);
+                    }
                 }
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
+        }, e -> {
+            System.err.println("Error in UpdatesListener: " + e.getMessage());
+            //return UpdatesListener.CONFIRMED_UPDATES_ALL;
         });
     }
 
@@ -44,7 +54,12 @@ public class TelegramClient {
 
         for (CommandHandler handler : commandHandlers) {
             if (handler.canHandle(text)) {
-                String response = handler.handle(update, messageSource);
+                String response;
+                try {
+                    response = handler.handle(update, messageSource);
+                } catch (HttpClientErrorException.BadRequest e) {
+                    response = messageSource.getMessage("price.error", null, Locale.getDefault());
+                }
                 SendMessage message = new SendMessage(chatId, response);
                 message.replyMarkup(keyboard);
                 bot.execute(message);
