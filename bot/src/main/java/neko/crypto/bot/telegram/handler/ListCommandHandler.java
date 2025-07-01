@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import neko.crypto.bot.client.scrapper.ScrapperClient;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.Locale;
 
@@ -21,9 +22,16 @@ public class ListCommandHandler implements CommandHandler {
     @Override
     public String handle(Update update, MessageSource messageSource) {
         Long chatId = update.message().chat().id();
-        String watchlist = scrapperClient.getWatchlist(chatId);
-        return watchlist.isEmpty()
-                ? messageSource.getMessage("list.empty", null, Locale.getDefault())
-                : messageSource.getMessage("list.success", new Object[]{watchlist}, Locale.getDefault());
+        try {
+            String watchlist = scrapperClient.getWatchlist(chatId);
+            if (watchlist == null || watchlist.isEmpty()) {
+                return messageSource.getMessage("list.empty", null, Locale.getDefault());
+            }
+            return messageSource.getMessage("list.success", new Object[]{watchlist}, Locale.getDefault());
+        } catch (HttpClientErrorException.BadRequest e) {
+            return messageSource.getMessage("list.error", new Object[]{"Error fetching watchlist: " + e.getResponseBodyAsString()}, Locale.getDefault());
+        } catch (Exception e) {
+            return messageSource.getMessage("list.error", new Object[]{"Unexpected error: " + e.getMessage()}, Locale.getDefault());
+        }
     }
 }

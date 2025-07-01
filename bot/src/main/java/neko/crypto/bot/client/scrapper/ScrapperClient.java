@@ -1,11 +1,16 @@
 package neko.crypto.bot.client.scrapper;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 @Component
+@Slf4j
 public class ScrapperClient {
     private final RestTemplate restTemplate;
     private final String scrapperApiUrl;
@@ -17,40 +22,81 @@ public class ScrapperClient {
 
     public String getPrice(String ticker) {
         try {
-            return restTemplate.getForObject(scrapperApiUrl + "/price/{ticker}", String.class, ticker);
+            log.debug("Sending GET request to scrapper: {}/price/{}", scrapperApiUrl, ticker);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    scrapperApiUrl + "/price/{ticker}", HttpMethod.GET, null, String.class, ticker);
+            String body = response.getBody();
+            log.debug("Received response from scrapper for price/{}: status={}, body={}", ticker, response.getStatusCode(), body);
+            if (body == null) {
+                log.error("Received null body from scrapper for price/{}", ticker);
+                throw new RuntimeException("Scrapper returned null body for price request: " + ticker);
+            }
+            return body;
         } catch (HttpClientErrorException.BadRequest e) {
-            throw e; // Передаем ошибку наверх для обработки в PriceCommandHandler
+            log.error("Error fetching price for ticker {}: {}", ticker, e.getResponseBodyAsString());
+            throw e;
+        } catch (ResourceAccessException e) {
+            log.error("Failed to connect to scrapper for price/{}: {}", ticker, e.getMessage());
+            throw new RuntimeException("Failed to connect to scrapper: " + e.getMessage());
         }
     }
 
-    public void addToWatchlist(Long chatId, String ticker) {
+    public String addToWatchlist(Long chatId, String ticker) {
         try {
-            restTemplate.postForObject(scrapperApiUrl + "/watchlist/{chatId}/add/{ticker}", null, Void.class, chatId, ticker);
+            log.debug("Sending POST request to scrapper: {}/watchlist/{}/add/{}", scrapperApiUrl, chatId, ticker);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    scrapperApiUrl + "/watchlist/{chatId}/add/{ticker}", HttpMethod.POST, null, String.class, chatId, ticker);
+            String body = response.getBody();
+            log.debug("Received response from scrapper for watchlist/{}/add/{}: status={}, body={}", chatId, ticker, response.getStatusCode(), body);
+//            if (body == null) {
+//                log.error("Received null body from scrapper for watchlist/{}/add/{}", chatId, ticker);
+//                throw new RuntimeException("Scrapper returned null body for add to watchlist: " + ticker);
+//            }
+            return body;
         } catch (HttpClientErrorException.BadRequest e) {
-            throw e; // Можно добавить обработку, если scrapper начнет возвращать ошибки для этого метода
+            log.error("Error adding ticker {} to watchlist for chatId {}: {}", ticker, chatId, e.getResponseBodyAsString());
+            throw e;
+        } catch (ResourceAccessException e) {
+            log.error("Failed to connect to scrapper for watchlist/{}/add/{}: {}", chatId, ticker, e.getMessage());
+            throw new RuntimeException("Failed to connect to scrapper: " + e.getMessage());
         }
     }
 
     public boolean removeFromWatchlist(Long chatId, String ticker) {
         try {
-            return restTemplate.exchange(
-                    scrapperApiUrl + "/watchlist/{chatId}/remove/{ticker}",
-                    org.springframework.http.HttpMethod.DELETE,
-                    null,
-                    Boolean.class,
-                    chatId,
-                    ticker
-            ).getBody();
+            log.debug("Sending DELETE request to scrapper: {}/watchlist/{}/remove/{}", scrapperApiUrl, chatId, ticker);
+            ResponseEntity<Boolean> response = restTemplate.exchange(
+                    scrapperApiUrl + "/watchlist/{chatId}/remove/{ticker}", HttpMethod.DELETE, null, Boolean.class, chatId, ticker);
+            Boolean body = response.getBody();
+            log.debug("Received response from scrapper for watchlist/{}/remove/{}: status={}, body={}", chatId, ticker, response.getStatusCode(), body);
+            return body != null ? body : false;
         } catch (HttpClientErrorException.BadRequest e) {
-            return false; // Если тикер не найден, возвращаем false
+            log.error("Error removing ticker {} from watchlist for chatId {}: {}", ticker, chatId, e.getResponseBodyAsString());
+            return false;
+        } catch (ResourceAccessException e) {
+            log.error("Failed to connect to scrapper for watchlist/{}/remove/{}: {}", ticker, chatId, e.getMessage());
+            return false;
         }
     }
 
     public String getWatchlist(Long chatId) {
         try {
-            return restTemplate.getForObject(scrapperApiUrl + "/watchlist/{chatId}", String.class, chatId);
+            log.debug("Sending GET request to scrapper: {}/watchlist/{}", scrapperApiUrl, chatId);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    scrapperApiUrl + "/watchlist/{chatId}", HttpMethod.GET, null, String.class, chatId);
+            String body = response.getBody();
+            log.debug("Received response from scrapper for watchlist/{}: status={}, body={}", chatId, response.getStatusCode(), body);
+//            if (body == null) {
+//                log.error("Received null body from scrapper for watchlist/{}", chatId);
+//                throw new RuntimeException("Scrapper returned null body for watchlist request: " + chatId);
+//            }
+            return body;
         } catch (HttpClientErrorException.BadRequest e) {
-            return ""; // Возвращаем пустую строку, если список недоступен
+            log.error("Error fetching watchlist for chatId {}: {}", chatId, e.getResponseBodyAsString());
+            return "";
+        } catch (ResourceAccessException e) {
+            log.error("Failed to connect to scrapper for watchlist/{}: {}", chatId, e.getMessage());
+            throw new RuntimeException("Failed to connect to scrapper: " + e.getMessage());
         }
     }
 }

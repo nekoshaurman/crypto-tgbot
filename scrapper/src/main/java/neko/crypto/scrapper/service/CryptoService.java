@@ -18,30 +18,34 @@ import java.io.IOException;
 public class CryptoService {
     private final OkHttpClient client;
     private final ObjectMapper objectMapper;
+    private final WatchlistService watchlistService;
 
     @Cacheable(value = "cryptoPrices", key = "#ticker")
     public String getPrice(String ticker) {
         String upperTicker = ticker.toUpperCase();
+        String usdtTicker;
+        //String usdtTicker = upperTicker + "USDT";
+
+        if (upperTicker.contains("USDT")) usdtTicker = upperTicker;
+        else usdtTicker = upperTicker + "USDT";
+
         log.info("Fetching price for ticker: {}, cache key: {}", ticker, upperTicker);
 
-        // Первая попытка: запрос с тикером в верхнем регистре
-        log.info("Attempting to fetch price for ticker: {}", upperTicker);
-        String price = fetchPrice(upperTicker);
-        if (price != null) {
-            log.info("Successfully fetched price for ticker {}: ${}", upperTicker, price);
-            return price;
+        // Проверяем валидность тикера через validUsdtPairs
+        if (!watchlistService.isValidUsdtPair(usdtTicker)) {
+            log.warn("Invalid ticker: {} not found in USDT trading pairs", usdtTicker);
+            throw new RuntimeException("Invalid ticker: " + ticker);
         }
 
-        // Вторая попытка: запрос с тикером + USDT
-        String usdtTicker = upperTicker + "USDT";
-        log.info("Retrying with USDT ticker: {}", usdtTicker);
-        price = fetchPrice(usdtTicker);
+        // Запрашиваем цену для usdtTicker
+        log.info("Attempting to fetch price for ticker: {}", usdtTicker);
+        String price = fetchPrice(usdtTicker);
         if (price != null) {
             log.info("Successfully fetched price for ticker {}: ${}", usdtTicker, price);
             return price;
         }
 
-        log.warn("Ticker not found: {} or {}", upperTicker, usdtTicker);
+        log.warn("Failed to fetch price for ticker: {}", usdtTicker);
         throw new RuntimeException("Failed to fetch price for " + ticker + ": Ticker not found");
     }
 

@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import neko.crypto.bot.client.scrapper.ScrapperClient;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.Locale;
 
@@ -20,18 +21,24 @@ public class AddCommandHandler implements CommandHandler {
 
     @Override
     public String handle(Update update, MessageSource messageSource) {
-        Long chatId = update.message().chat().id();
         String text = update.message().text().toLowerCase();
-        String ticker = extractTicker(text);
+        String[] parts = text.split(" ");
+        String ticker = parts.length > 1 ? parts[1].toLowerCase() : null;
+        Long chatId = update.message().chat().id();
+
         if (ticker != null) {
-            scrapperClient.addToWatchlist(chatId, ticker);
-            return messageSource.getMessage("add.success", new Object[]{ticker.toUpperCase()}, Locale.getDefault());
+            try {
+                String response = scrapperClient.addToWatchlist(chatId, ticker);
+                if (response == null || response.isEmpty()) {
+                    return messageSource.getMessage("add.success", new Object[]{ticker.toUpperCase()}, Locale.getDefault());
+                }
+                return messageSource.getMessage("add.error", new Object[]{ticker.toUpperCase(), response}, Locale.getDefault());
+            } catch (HttpClientErrorException.BadRequest e) {
+                return messageSource.getMessage("add.error", new Object[]{ticker.toUpperCase(), e.getResponseBodyAsString()}, Locale.getDefault());
+            } catch (Exception e) {
+                return messageSource.getMessage("add.error", new Object[]{ticker.toUpperCase(), "Unexpected error: " + e.getMessage()}, Locale.getDefault());
+            }
         }
         return messageSource.getMessage("add.invalid", null, Locale.getDefault());
-    }
-
-    private String extractTicker(String text) {
-        String[] parts = text.split(" ");
-        return parts.length > 1 ? parts[1].toLowerCase() : null;
     }
 }

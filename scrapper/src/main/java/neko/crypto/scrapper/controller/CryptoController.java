@@ -22,7 +22,7 @@ public class CryptoController {
 
     @GetMapping("/price/{ticker}")
     public ResponseEntity<String> getPrice(@PathVariable String ticker, @RequestParam(defaultValue = "false") boolean refresh) {
-        log.info("Received GET /api/crypto/price/{} with refresh={}", ticker, refresh);
+        log.debug("Received GET /api/crypto/price/{} with refresh={}", ticker, refresh);
         try {
             String price = cryptoService.getPrice(ticker);
             log.info("Successfully fetched price for ticker {}: ${}", ticker, price);
@@ -34,16 +34,21 @@ public class CryptoController {
     }
 
     @PostMapping("/watchlist/{chatId}/add/{ticker}")
-    public ResponseEntity<Void> addToWatchlist(@PathVariable Long chatId, @PathVariable String ticker) {
-        log.info("Received POST /api/crypto/watchlist/{}/add/{}", chatId, ticker);
-        watchlistService.addToWatchlist(chatId, ticker.toLowerCase());
-        log.info("Added ticker {} to watchlist for chatId: {}", ticker, chatId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<String> addToWatchlist(@PathVariable Long chatId, @PathVariable String ticker) {
+        log.debug("Received POST /api/crypto/watchlist/{}/add/{}", chatId, ticker);
+        try {
+            watchlistService.addToWatchlist(chatId, ticker.toLowerCase());
+            log.info("Added ticker {} to watchlist for chatId: {}", ticker, chatId);
+            return ResponseEntity.ok("");
+        } catch (IllegalArgumentException e) {
+            log.error("Error adding ticker {} to watchlist for chatId {}: {}", ticker, chatId, e.getMessage());
+            return ResponseEntity.badRequest().body(messageSource.getMessage("api.watchlist.add.error", new Object[]{ticker, e.getMessage()}, Locale.getDefault()));
+        }
     }
 
     @DeleteMapping("/watchlist/{chatId}/remove/{ticker}")
     public ResponseEntity<Boolean> removeFromWatchlist(@PathVariable Long chatId, @PathVariable String ticker) {
-        log.info("Received DELETE /api/crypto/watchlist/{}/remove/{}", chatId, ticker);
+        log.debug("Received DELETE /api/crypto/watchlist/{}/remove/{}", chatId, ticker);
         boolean removed = watchlistService.removeFromWatchlist(chatId, ticker.toLowerCase());
         log.info("Removed ticker {} from watchlist for chatId: {}, success: {}", ticker, chatId, removed);
         return ResponseEntity.ok(removed);
@@ -51,7 +56,7 @@ public class CryptoController {
 
     @GetMapping("/watchlist/{chatId}")
     public ResponseEntity<String> getWatchlist(@PathVariable Long chatId) {
-        log.info("Received GET /api/crypto/watchlist/{}", chatId);
+        log.debug("Received GET /api/crypto/watchlist/{}", chatId);
         Set<String> watchlist = watchlistService.getWatchlist(chatId);
         String response = watchlist.isEmpty() ? "" : String.join(", ", watchlist);
         log.info("Fetched watchlist for chatId: {}, watchlist: {}", chatId, response);
