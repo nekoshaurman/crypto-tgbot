@@ -3,6 +3,8 @@ package neko.crypto.scrapper.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import neko.crypto.scrapper.model.Watchlist;
+import neko.crypto.scrapper.repository.WatchlistRepository;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -11,23 +13,23 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class WatchlistService {
-    private final Map<Long, Set<String>> watchlists = new HashMap<>();
     private final Set<String> validUsdtPairs = new HashSet<>();
     private final OkHttpClient client;
     private final ObjectMapper objectMapper;
+    private final WatchlistRepository watchlistRepository;
 
     @Autowired
-    public WatchlistService(@Lazy OkHttpClient client, @Lazy ObjectMapper objectMapper) {
+    public WatchlistService(@Lazy OkHttpClient client, @Lazy ObjectMapper objectMapper, WatchlistRepository watchlistRepository) {
         this.client = client;
         this.objectMapper = objectMapper;
+        this.watchlistRepository = watchlistRepository;
         initializeUsdtPairs();
     }
 
@@ -66,59 +68,63 @@ public class WatchlistService {
         log.debug("Adding ticker {} to watchlist for chatId: {}", ticker, chatId);
         String upperTicker = ticker.toUpperCase();
         String usdtTicker;
-        //String usdtTicker = upperTicker + "USDT";
-
-        if (upperTicker.contains("USDT")) usdtTicker = upperTicker;
-        else usdtTicker = upperTicker + "USDT";
+        if (upperTicker.contains("USDT")) {
+            usdtTicker = upperTicker;
+        } else {
+            usdtTicker = upperTicker + "USDT";
+        }
 
         if (!validUsdtPairs.contains(usdtTicker)) {
             log.warn("Invalid ticker {}: {} not found in USDT trading pairs", ticker, usdtTicker);
             throw new IllegalArgumentException("Invalid ticker: " + ticker);
         }
 
-        watchlists.computeIfAbsent(chatId, k -> {
-            log.debug("Creating new watchlist for chatId: {}", chatId);
-            return new HashSet<>();});
+        if (watchlistRepository.existsByChatIdAndTicker(chatId, usdtTicker)) {
+            log.debug("Ticker {} already exists in watchlist for chatId: {}", usdtTicker, chatId);
+            return;
+        }
 
-        if (upperTicker.contains("USDT")) watchlists.get(chatId).add(upperTicker);
-        else watchlists.get(chatId).add(usdtTicker);
-
-        //watchlists.computeIfAbsent(chatId, k -> {
-        //    log.debug("Creating new watchlist for chatId: {}", chatId);
-        //    return new HashSet<>();
-        //}).add(ticker.toLowerCase());
-        //}).add(usdtTicker);
+        Watchlist watchlist = new Watchlist();
+        watchlist.setChatId(chatId);
+        watchlist.setTicker(usdtTicker);
+        watchlistRepository.save(watchlist);
         log.info("Ticker {} added to watchlist for chatId: {}", ticker, chatId);
     }
 
     public boolean removeFromWatchlist(Long chatId, String ticker) {
+        log.debug("Removing ticker {} from watchlist for chatId: {}", ticker, chatId);
         String upperTicker = ticker.toUpperCase();
         String usdtTicker;
+        if (upperTicker.contains("USDT")) {
+            usdtTicker = upperTicker;
+        } else {
+            usdtTicker = upperTicker + "USDT";
+        }
 
-        log.debug("Removing ticker {} from watchlist for chatId: {}", ticker, chatId);
-        Set<String> watchlist = watchlists.get(chatId);
-        //boolean removed = watchlist != null && watchlist.remove(ticker.toLowerCase());
+        if (!watchlistRepository.existsByChatIdAndTicker(chatId, usdtTicker)) {
+            log.info("Ticker {} not found in watchlist for chatId: {}", usdtTicker, chatId);
+            return false;
+        }
 
-        boolean removed;
-
-        if (upperTicker.contains("USDT")) usdtTicker = upperTicker;
-        else usdtTicker = upperTicker + "USDT";
-
-        removed = watchlist != null && watchlist.remove(usdtTicker);
-
-        log.info("Ticker {} removal from watchlist for chatId: {}, success: {}", usdtTicker, chatId, removed);
-        return removed;
+        watchlistRepository.deleteByChatIdAndTicker(chatId, usdtTicker);
+        log.info("Ticker {} removed from watchlist for chatId: {}", usdtTicker, chatId);
+        return true;
     }
 
     public Set<String> getWatchlist(Long chatId) {
         log.debug("Fetching watchlist for chatId: {}", chatId);
-        Set<String> watchlist = watchlists.getOrDefault(chatId, new HashSet<>());
+        Set<String> watchlist = watchlistRepository.findByChatId(chatId)
+                .stream()
+                .map(Watchlist::getTicker)
+                .collect(Collectors.toSet());
         log.info("Watchlist for chatId {}: {}", chatId, watchlist);
         return watchlist;
     }
 
     public boolean isValidUsdtPair(String ticker) {
-        if (!ticker.contains("USDT")) ticker = ticker + "USDT";
+        if (!ticker.contains("USDT")) {
+            ticker = ticker + "USDT";
+        }
         return validUsdtPairs.contains(ticker.toUpperCase());
     }
 }
