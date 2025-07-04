@@ -13,7 +13,9 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -126,5 +128,34 @@ public class WatchlistService {
             ticker = ticker + "USDT";
         }
         return validUsdtPairs.contains(ticker.toUpperCase());
+    }
+
+    public Set<Long> getAllChatIds() {
+        log.debug("Fetching all distinct chatIds with watchlists");
+        Set<Long> chatIds = watchlistRepository.findDistinctChatIds();
+        log.info("Found {} distinct chatIds: {}", chatIds.size(), chatIds);
+        return chatIds;
+    }
+
+    public List<String> getUsdtPairs(int page, int size) {
+        log.debug("Fetching USDT pairs for page: {}, size: {}", page, size);
+        List<String> sortedPairs = new ArrayList<>(validUsdtPairs);
+        sortedPairs.sort(String::compareTo); // Сортировка для предсказуемого порядка
+        int start = page * size;
+        int end = Math.min(start + size, sortedPairs.size());
+        if (start >= sortedPairs.size()) {
+            log.warn("Requested page {} is out of bounds, total pairs: {}", page, sortedPairs.size());
+            return new ArrayList<>();
+        }
+        List<String> result = sortedPairs.subList(start, end);
+        log.info("Returning {} USDT pairs for page {}: {}", result.size(), page, result);
+        return result;
+    }
+
+    public int getUsdtPairsCount() {
+        log.debug("Fetching total count of USDT pairs");
+        int count = validUsdtPairs.size();
+        log.info("Total USDT pairs count: {}", count);
+        return count;
     }
 }

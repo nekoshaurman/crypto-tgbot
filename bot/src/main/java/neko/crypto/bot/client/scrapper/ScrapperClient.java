@@ -1,5 +1,6 @@
 package neko.crypto.bot.client.scrapper;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
@@ -13,6 +14,7 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class ScrapperClient {
     private final RestTemplate restTemplate;
+    @Getter
     private final String scrapperApiUrl;
 
     public ScrapperClient(@Value("${scrapper.api.url}") String scrapperApiUrl) {

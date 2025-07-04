@@ -8,8 +8,10 @@ import org.springframework.context.MessageSource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/crypto")
@@ -61,5 +63,25 @@ public class CryptoController {
         String response = watchlist.isEmpty() ? "" : String.join(", ", watchlist);
         log.info("Fetched watchlist for chatId: {}, watchlist: {}", chatId, response);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/watchlist/chatIds")
+    public ResponseEntity<String> getAllChatIds() {
+        Set<Long> chatIds = watchlistService.getAllChatIds();
+        String result = chatIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/pairs")
+    public ResponseEntity<String> getUsdtPairs(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        List<String> pairs = watchlistService.getUsdtPairs(page, size);
+        String result = String.join(",", pairs);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/pairs/count")
+    public ResponseEntity<Integer> getUsdtPairsCount() {
+        int count = watchlistService.getUsdtPairsCount();
+        return ResponseEntity.ok(count);
     }
 }
