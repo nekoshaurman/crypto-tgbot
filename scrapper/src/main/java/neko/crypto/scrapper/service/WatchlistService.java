@@ -11,6 +11,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -33,7 +34,7 @@ public class WatchlistService {
         this.client = client;
         this.objectMapper = objectMapper;
         this.watchlistRepository = watchlistRepository;
-        initializeUsdtPairs();
+        //initializeUsdtPairs();
     }
 
     private void initializeUsdtPairs() {
@@ -159,5 +160,10 @@ public class WatchlistService {
         int count = validUsdtPairs.size();
         log.info("Total USDT pairs count: {}", count);
         return String.valueOf(count);
+    }
+
+    @Scheduled(fixedRate = 3600000) // update every 1h
+    public void updateValidUsdtPairs() {
+        initializeUsdtPairs();
     }
 }
