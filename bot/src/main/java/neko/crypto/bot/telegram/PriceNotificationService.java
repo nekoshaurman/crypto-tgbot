@@ -26,7 +26,7 @@ public class PriceNotificationService {
     private final MessageSource messageSource;
     private final RestTemplate restTemplate;
 
-    @Scheduled(fixedRate = 60000) // Каждые 60 минут (3600000 мс)
+    @Scheduled(fixedRate = 300000) // 5min
     public void sendPriceNotifications() {
         log.info("Starting price notification task");
         try {

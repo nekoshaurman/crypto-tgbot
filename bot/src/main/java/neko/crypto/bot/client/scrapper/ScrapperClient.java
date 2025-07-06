@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @Slf4j
@@ -98,6 +99,46 @@ public class ScrapperClient {
             return "";
         } catch (ResourceAccessException e) {
             log.error("Failed to connect to scrapper for watchlist/{}: {}", chatId, e.getMessage());
+            throw new RuntimeException("Failed to connect to scrapper: " + e.getMessage());
+        }
+    }
+
+    public String getValidUsdtPairs(int page, int size) {
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(scrapperApiUrl + "/pairs")
+                    .queryParam("page", page)
+                    //.queryParam("size", size)
+                    .toUriString();
+
+            log.debug("Sending GET request to scrapper: {}", url);
+
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, null, String.class);
+
+            String body = response.getBody();
+            log.debug("Received response from scrapper for pairs: status={}, body={}", response.getStatusCode(), body);
+            return body;
+        } catch (HttpClientErrorException.BadRequest e) {
+            log.error("Error fetching pairs: {}", e.getResponseBodyAsString());
+            return "";
+        } catch (ResourceAccessException e) {
+            log.error("Failed to connect to scrapper for pairs: {}", e.getMessage());
+            throw new RuntimeException("Failed to connect to scrapper: " + e.getMessage());
+        }
+    }
+
+    public String getValidUsdtPairsCount() {
+        try {
+            log.debug("Sending GET request to scrapper: {}/pairs/count", scrapperApiUrl);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    scrapperApiUrl + "/pairs/count", HttpMethod.GET, null, String.class);
+            String body = response.getBody();
+            log.debug("Received response from scrapper for pairs/count: status={}, body={}", response.getStatusCode(), body);
+            return body;
+        } catch (HttpClientErrorException.BadRequest e) {
+            log.error("Error fetching pairs/count: {}", e.getResponseBodyAsString());
+            return "";
+        } catch (ResourceAccessException e) {
+            log.error("Failed to connect to scrapper for pairs/count: {}", e.getMessage());
             throw new RuntimeException("Failed to connect to scrapper: " + e.getMessage());
         }
     }

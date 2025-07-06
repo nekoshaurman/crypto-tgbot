@@ -74,14 +74,16 @@ public class CryptoController {
 
     @GetMapping("/pairs")
     public ResponseEntity<String> getUsdtPairs(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        log.debug("Received GET /api/crypto/pairs?page={}&size={}", page, size);
         List<String> pairs = watchlistService.getUsdtPairs(page, size);
-        String result = String.join(",", pairs);
+        String result = String.join("\n", pairs);
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/pairs/count")
-    public ResponseEntity<Integer> getUsdtPairsCount() {
-        int count = watchlistService.getUsdtPairsCount();
+    public ResponseEntity<String> getUsdtPairsCount() {
+        log.debug("Received GET /api/crypto/pairs/count");
+        String count = watchlistService.getUsdtPairsCount();
         return ResponseEntity.ok(count);
     }
 }

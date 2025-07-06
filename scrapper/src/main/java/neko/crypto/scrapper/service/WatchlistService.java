@@ -2,6 +2,7 @@ package neko.crypto.scrapper.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import neko.crypto.scrapper.model.Watchlist;
 import neko.crypto.scrapper.repository.WatchlistRepository;
@@ -47,7 +48,7 @@ public class WatchlistService {
                 return;
             }
             String body = response.body().string();
-            log.debug("Binance exchange info response: {}", body);
+            //log.debug("Binance exchange info response: {}", body);
             JsonNode json = objectMapper.readTree(body);
             JsonNode symbols = json.get("symbols");
             if (symbols != null && symbols.isArray()) {
@@ -93,6 +94,7 @@ public class WatchlistService {
         log.info("Ticker {} added to watchlist for chatId: {}", ticker, chatId);
     }
 
+    @Transactional
     public boolean removeFromWatchlist(Long chatId, String ticker) {
         log.debug("Removing ticker {} from watchlist for chatId: {}", ticker, chatId);
         String upperTicker = ticker.toUpperCase();
@@ -152,10 +154,10 @@ public class WatchlistService {
         return result;
     }
 
-    public int getUsdtPairsCount() {
+    public String getUsdtPairsCount() {
         log.debug("Fetching total count of USDT pairs");
         int count = validUsdtPairs.size();
         log.info("Total USDT pairs count: {}", count);
-        return count;
+        return String.valueOf(count);
     }
 }
