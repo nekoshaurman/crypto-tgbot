@@ -15,12 +15,25 @@
 
 Список обновляется на scrapper по расписанию.
 
-### TODO
+## TODO
 Настройки расписания связанного с отслеживанием тикеров самим пользователем.
 
 Расширение возможностей списка отслеживаемых тикеров (отслеживание роста/падения тикеров и уведомления об этом) с возможностью изменения настроек пользователем
 
 Изменение работы вывода списка доступных тикеров (заместо параметра в команде использовать кнопки в телеграм).
 
-### Стек
+## Стек
 ### Java, Maven, SpringBoot, Telegram Bot API, PosgreSQL, OkHttp
+
+## Скриншоты
+### start + price commands
+![prices.png](screenshots/prices.png)
+
+### pairs command
+![pairs.png](screenshots/pairs.png)
+
+### list + add + remove commands
+![list.png](screenshots/list.png)
+
+### notification about actual prices
+![notification.png](screenshots/notification.png)
